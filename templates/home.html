@@ -1,0 +1,13 @@
+{{ define "content" }}
+
+<h1>{{.Heading}}</h1>
+
+<p>Lista de archivos en {{.Ruta}}</p>
+
+<ul>
+	{{ range .Files }}
+	<li>{{ if .IsDir }} Carpeta {{ else }} Archivo {{ end }} - {{ .Name }}</li>
+	{{ end }}
+</ul>
+
+{{ end }}
