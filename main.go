@@ -10,7 +10,7 @@ import (
 )
 
 const PORT = ":8080"
-const MEDIAROOT = "/home/yogusita/"
+const MEDIA_ROOT = "/home/yogusita/"
 
 func parseUrlPath(path string) []string {
 	var s scanner.Scanner
@@ -46,46 +46,81 @@ type MediaHandler struct {}
 type PageHomeData struct {
 	Title string	
 	Heading string
-	Ruta string
+	CurrentFsPath string
+	CurrentUrl string
+	ParentUrl string
 	Files []os.DirEntry
-	// Files []string
 }
 
-func(MediaHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func(h MediaHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	fmt.Printf("Media handler hit with path: %s\n", r.URL.Path)
 
-	files, err := os.ReadDir(MEDIAROOT)
+	// necesito que si es /media/mi/carpeta
+	// localpath es MEDIA_ROOT/mi/carpeta
+	fsPath := strings.Replace(r.URL.Path, "/media/", MEDIA_ROOT, 1)
+	fmt.Printf("> fsPath : %s\n", fsPath)
 
-	if err != nil {
+	var parentDirPath string
+
+	if !strings.HasSuffix(fsPath, MEDIA_ROOT) {
+		// Url no termina en MEDIA_ROOT
+		s := strings.Split(r.URL.Path, "/")
+		// Quitamos media-query y el ultimo elemento, y unimos para crear el path
+		parentDirPath = strings.Join(s[1:len(s)-1], "/")
+	}
+
+	fmt.Printf("> parentDirPath : %s\n", parentDirPath)
+
+	handleOsError := func(err error) {
+		fmt.Printf("> Error reading path: %s\n", fsPath)
+		fmt.Printf("> Error:%s\n", err)
+		errIsNotExist := os.IsNotExist(err)
+
+		if (errIsNotExist) {
+			// TODO: ir a pagina 404
+			fmt.Fprintln(w, "No hay nada aqui")
+			return
+		}
+
+		// TODO: ir a pagina error
 		log.Fatal(err)
 	}
 
-	var dirEntries []os.DirEntry
-	// var dirEntries []string
+	fileInfo, err := os.Lstat(fsPath)
 
-	for _, file := range files  {
-		var decorator string
-		if (file.IsDir()) {
-			decorator = "d"
-		} else {
-			decorator = "f"
+	if err != nil {
+		handleOsError(err)
+		return
+	}
+		
+
+	// TODO: handle symlinks?
+	if (fileInfo.IsDir()) {
+		files, err := os.ReadDir(fsPath)
+
+		if err != nil {
+			handleOsError(err)
+			return
 		}
 
-		fmt.Println(decorator)
-		dirEntries = append(dirEntries, file)
+		tmpl := template.Must(template.ParseFiles("templates/base.html", "templates/directory.html"))
+		data := PageHomeData {
+			Title: "Yogusita Media Server",
+			Heading: "Bienvenid@ a Yogusita Media Server",
+			CurrentFsPath: fsPath,
+			CurrentUrl: r.URL.Path,
+			ParentUrl: parentDirPath, 
+			Files: files,
+		}
+
+		if err := tmpl.ExecuteTemplate(w, "base.html", data); err != nil {
+		    log.Fatalln(err)
+		}
+
+		return
 	}
 
-	tmpl := template.Must(template.ParseFiles("templates/base.html", "templates/home.html"))
-	data := PageHomeData {
-		Title: "Yogusita Media Server",
-		Heading: "Bienvenid@ a Yogusita Media Server",
-		Ruta: MEDIAROOT,
-		Files: dirEntries,
-	}
-
-	if err := tmpl.ExecuteTemplate(w, "base.html", data); err != nil {
-	    log.Fatalln(err)
-	}
+	http.ServeFile(w, r, fsPath)
 }
 
 func main() {
