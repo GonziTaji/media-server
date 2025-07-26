@@ -1,58 +1,34 @@
 package main
+
 import (
-	"net/http"
 	"fmt"
-	"log"
-	"strings"
-	"text/scanner"
-	"os"
 	"html/template"
+	"log"
+	"net/http"
+	"os"
+	"strings"
 )
 
 const PORT = ":8080"
 const MEDIA_ROOT = "/home/yogusita/"
 
-func parseUrlPath(path string) []string {
-	var s scanner.Scanner
-	s.Init(strings.NewReader(path))
-
-	var parts []string
-
-	for {
-		tok := s.Scan()
-
-		if tok == scanner.EOF {
-			break
-		}
-
-		token := s.TokenText()
-
-		if token != "/" {
-			parts = append(parts, token)
-		}
-	}
-
-	return parts
+type PageHomeData struct {
+	Title         string
+	Heading       string
+	CurrentFsPath string
+	CurrentUrl    string
+	ParentUrl     string
+	Files         []os.DirEntry
 }
 
-type MainHandler struct {}
+type MainHandler struct{}
+type MediaHandler struct{}
 
-func (MainHandler) ServeHTTP (w http.ResponseWriter, r *http.Request) {
+func (MainHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	fmt.Printf("Main handler hit with path: %s\n", r.URL.Path)
 }
 
-type MediaHandler struct {}
-
-type PageHomeData struct {
-	Title string	
-	Heading string
-	CurrentFsPath string
-	CurrentUrl string
-	ParentUrl string
-	Files []os.DirEntry
-}
-
-func(h MediaHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (h MediaHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	fmt.Printf("Media handler hit with path: %s\n", r.URL.Path)
 
 	// necesito que si es /media/mi/carpeta
@@ -76,7 +52,7 @@ func(h MediaHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		fmt.Printf("> Error:%s\n", err)
 		errIsNotExist := os.IsNotExist(err)
 
-		if (errIsNotExist) {
+		if errIsNotExist {
 			// TODO: ir a pagina 404
 			fmt.Fprintln(w, "No hay nada aqui")
 			return
@@ -92,10 +68,9 @@ func(h MediaHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		handleOsError(err)
 		return
 	}
-		
 
 	// TODO: handle symlinks?
-	if (fileInfo.IsDir()) {
+	if fileInfo.IsDir() {
 		files, err := os.ReadDir(fsPath)
 
 		if err != nil {
@@ -103,18 +78,18 @@ func(h MediaHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		tmpl := template.Must(template.ParseFiles("templates/base.html", "templates/directory.html"))
-		data := PageHomeData {
-			Title: "Yogusita Media Server",
-			Heading: "Bienvenid@ a Yogusita Media Server",
+		tmpl := template.Must(template.ParseFiles("templates/base.tmpl", "templates/directory.tmpl"))
+		data := PageHomeData{
+			Title:         "Yogusita Media Server",
+			Heading:       "Bienvenid@ a Yogusita Media Server",
 			CurrentFsPath: fsPath,
-			CurrentUrl: r.URL.Path,
-			ParentUrl: parentDirPath, 
-			Files: files,
+			CurrentUrl:    r.URL.Path,
+			ParentUrl:     parentDirPath,
+			Files:         files,
 		}
 
-		if err := tmpl.ExecuteTemplate(w, "base.html", data); err != nil {
-		    log.Fatalln(err)
+		if err := tmpl.ExecuteTemplate(w, "base.tmpl", data); err != nil {
+			log.Fatalln(err)
 		}
 
 		return
@@ -126,11 +101,13 @@ func(h MediaHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 func main() {
 	mux := http.NewServeMux()
 
-	mux.HandleFunc("/favicon.ico", func (w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/favicon.ico", func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprint(w, "a")
 	})
+
 	mux.Handle("/", MainHandler{})
 	mux.Handle("/media/", MediaHandler{})
+	mux.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("static"))))
 
 	fmt.Printf("Listening on port %s\n", PORT)
 

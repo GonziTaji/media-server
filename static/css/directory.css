@@ -1,0 +1,73 @@
+.directory {
+    display: flex;
+    flex-direction: column;
+    max-width: 80vw;
+    width: 80vw;
+    justify-content: center;
+    margin: auto;
+}
+
+.directory .list {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    align-items: stretch;
+    justify-content: center;
+    /* resets */
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.directory .item {
+    color: #332e3c;
+    display: flex;
+    justify-content: start;
+    padding: 10px 15px;
+    height: 30px;
+    background-color: #fff4f0;
+    align-items: center;
+    gap: 1rem;
+}
+
+.directory .item a {
+    flex-grow: 1;
+    text-decoration: none;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: #131515;
+}
+
+.directory .item button {
+    color: #886f68;
+    white-space: nowrap;
+    cursor: pointer;
+    height: 100%;
+    border-radius: 100px;
+    background: #ffe6df;
+    border: none;
+    /* min so it doesn't shrink by large file names */
+    min-width: 40px;
+    height: 40px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    transition: background-color, color;
+    transition-duration: 200ms;
+    transition-timing-function: ease-in-out;
+}
+
+.directory .item button:hover {
+    color: #7a5f5a;
+    background: #fdd8d0;
+}
+
+.directory .item button:active {
+    color: #6c504b;
+    background: #fbcac0;
+}
+
+.directory .item+.item {
+    border-top: 1px solid #ffddb9db;
+}
