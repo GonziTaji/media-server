@@ -7,17 +7,48 @@
 
     <p>Lista de archivos en {{.CurrentFsPath}}</p>
 
-    {{ if gt (len .ParentUrl) 0 }} <a href=/{{ .ParentUrl }}>Subir</a> {{ end }}
+    <ul class="breadcrumbs">
+        {{ range $index, $value := .Breadcrumbs }}
+            {{ if .IsLast }}
+                <li>
+                        <span >{{ .Label }}</span>
+                </li>
+            {{ else }}
+                <li>
+                    <a href="{{ .Url }}">
+                    {{ if eq $index 0 }}
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-house-icon lucide-house"><path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8"/><path d="M3 10a2 2 0 0 1 .709-1.528l7-5.999a2 2 0 0 1 2.582 0l7 5.999A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+                    {{ else }}
+                        {{ .Label }}
+                    {{ end }}
+                    </a>
+                </li>
 
-    <ul class="list">
+                <li>
+                    <span> &gt; </span>
+                </li>
+            {{ end }}
+        {{end}}
+    </ul>
+
+<!--
+    <span class="up-button">
+        {{ if gt (len .ParentUrl) 0 }}
+            <a href=/{{ .ParentUrl }} title="up">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-corner-up-left-icon lucide-corner-up-left"><path d="M20 20v-7a4 4 0 0 0-4-4H4"/><path d="M9 14 4 9l5-5"/></svg>
+            </a>
+        {{ end }}
+    </span>
+-->
+
+    <ul class="file-list">
         {{ range .Files }}
-        <li class="item">
+        <li class="file-item">
             <a href="{{ $.CurrentUrl }}/{{ .Name }}" {{ if eq .IsDir false }} target="_blank" {{ end }}>
                 {{ if eq .IsDir true }} 📁 {{ else }} 📄 {{ end }}
                 {{ .Name }}
             </a>
             <button data-filename="{{.Name}}" onclick="onButtonTextClick({{.Name}})" type="button">
-                <!-- <img src="/static/media/icons/file-down.svg" width="18" /> -->
                 <svg class="dl-btn" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-file-down-icon lucide-file-down"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M12 18v-6"/><path d="m9 15 3 3 3-3"/></svg>
             </button>
         </li>

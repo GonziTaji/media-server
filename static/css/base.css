@@ -1,5 +1,43 @@
+:root {
+    --black-olive: #141301;
+    --dark-gray: #332e3c;
+
+    --brown-1: #886f68;
+    --brown-2: #7a5f5a;
+    --brown-3: #6c504b;
+
+    --pink-1: #ffe6df;
+    --pink-2: #fdd8d0;
+    --pink-3: #fbcac0;
+
+    --orange-1: #fff4f0;
+    --orange-2: #ffddb9;
+
+    --link-color: #3C64C8;
+}
+
+/* **********
+ * * Resets *
+ * **********/
+a {
+    text-decoration: none;
+}
+
+ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+/* others */
+
 body {
     background-color: #77685d;
     font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
-    color: #141301;
+    color: var(--color);
+}
+
+a,
+a:visited {
+    color: var(--link-color);
 }

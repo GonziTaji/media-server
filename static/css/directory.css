@@ -7,20 +7,16 @@
     margin: auto;
 }
 
-.directory .list {
+.directory .file-list {
     display: flex;
     flex-direction: column;
     width: 100%;
     align-items: stretch;
     justify-content: center;
-    /* resets */
-    list-style: none;
-    margin: 0;
-    padding: 0;
 }
 
-.directory .item {
-    color: #332e3c;
+.directory .file-item {
+    color: var(--dark-gray);
     display: flex;
     justify-content: start;
     padding: 10px 15px;
@@ -30,22 +26,22 @@
     gap: 1rem;
 }
 
-.directory .item a {
+.directory .file-item a {
     flex-grow: 1;
     text-decoration: none;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    color: #131515;
+    color: var(--black-olive);
 }
 
-.directory .item button {
-    color: #886f68;
+.directory .file-item button {
+    color: var(--brown-1);
     white-space: nowrap;
     cursor: pointer;
     height: 100%;
     border-radius: 100px;
-    background: #ffe6df;
+    background: var(--pink-1);
     border: none;
     /* min so it doesn't shrink by large file names */
     min-width: 40px;
@@ -58,16 +54,40 @@
     transition-timing-function: ease-in-out;
 }
 
-.directory .item button:hover {
-    color: #7a5f5a;
-    background: #fdd8d0;
+.directory .file-item button:hover {
+    color: var(--brown-2);
+    background: var(--pink-2);
 }
 
-.directory .item button:active {
-    color: #6c504b;
-    background: #fbcac0;
+.directory .file-item button:active {
+    color: var(--brown-3);
+    background: var(--pink-3);
 }
 
-.directory .item+.item {
-    border-top: 1px solid #ffddb9db;
+.directory .file-item+.file-item {
+    border-top: 1px solid var(--orange-2);
+}
+
+.directory .breadcrumbs {
+    color: var(--brown-2);
+    background: var(--pink-2);
+    padding: 6px 12px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.directory .breadcrumbs a:has(svg) {
+    /* fix icon con altura 20 cuando svg tiene altura 16 */
+    display: flex;
+}
+
+.directory .breadcrumbs a:hover {
+    color: var(--brown-2);
+    background: var(--pink-2);
+}
+
+.directory .breadcrumbs a:active {
+    color: var(--brown-3);
+    background: var(--pink-3);
 }

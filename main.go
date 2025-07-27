@@ -12,6 +12,12 @@ import (
 const PORT = ":8080"
 const MEDIA_ROOT = "/home/yogusita/"
 
+type BreadcrumbItem struct {
+	Label  string
+	Url    string
+	IsLast bool
+}
+
 type PageHomeData struct {
 	Title         string
 	Heading       string
@@ -19,6 +25,7 @@ type PageHomeData struct {
 	CurrentUrl    string
 	ParentUrl     string
 	Files         []os.DirEntry
+	Breadcrumbs   []BreadcrumbItem
 }
 
 type MainHandler struct{}
@@ -78,6 +85,49 @@ func (h MediaHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
+		var currentBaseUrl strings.Builder
+		var breadcrumbs []BreadcrumbItem
+
+		currentBaseUrl.WriteString("/")
+		urlParts := strings.Split(r.URL.Path, "/")
+
+		fmt.Print(">>> antes: ")
+		for i := range urlParts {
+			fmt.Printf(" '%s' ", urlParts[i])
+		}
+		fmt.Print("\n")
+
+		fmt.Printf(">>> >>> len of '%s' (i=%d): %d\n", urlParts[0], 0, len(urlParts[0]))
+		fmt.Printf(">>> >>> len of '%s' (i=%d): %d\n", urlParts[len(urlParts)-1], len(urlParts)-1, len(urlParts[len(urlParts)-1]))
+
+		// quita primer elemento por que "/media" = "['', 'media']"
+		if len(urlParts[0]) == 0 {
+			urlParts = urlParts[1:]
+		}
+
+		// quita ultimo elemento para cuando ruta termina en "/". En ese caso "media/" = "['media', '']"
+		if len(urlParts[len(urlParts)-1]) == 0 {
+			urlParts = urlParts[:len(urlParts)-1]
+		}
+
+		fmt.Printf(">>> despues: '%s'\n", urlParts)
+
+		for i := range urlParts {
+			label := urlParts[i]
+			currentBaseUrl.WriteString(label)
+			currentBaseUrl.WriteString("/")
+
+			if i == 0 {
+				label = "/"
+			}
+
+			breadcrumbs = append(breadcrumbs, BreadcrumbItem{
+				Label:  label,
+				Url:    currentBaseUrl.String(),
+				IsLast: i == len(urlParts)-1,
+			})
+		}
+
 		tmpl := template.Must(template.ParseFiles("templates/base.tmpl", "templates/directory.tmpl"))
 		data := PageHomeData{
 			Title:         "Yogusita Media Server",
@@ -86,6 +136,7 @@ func (h MediaHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			CurrentUrl:    r.URL.Path,
 			ParentUrl:     parentDirPath,
 			Files:         files,
+			Breadcrumbs:   breadcrumbs,
 		}
 
 		if err := tmpl.ExecuteTemplate(w, "base.tmpl", data); err != nil {
