@@ -7,7 +7,7 @@
     margin: auto;
 }
 
-.directory .file-list {
+.directory .entries-list {
     display: flex;
     flex-direction: column;
     width: 100%;
@@ -15,7 +15,7 @@
     justify-content: center;
 }
 
-.directory .file-item {
+.directory .entries-item {
     color: var(--dark-gray);
     display: flex;
     justify-content: start;
@@ -26,7 +26,7 @@
     gap: 1rem;
 }
 
-.directory .file-item a {
+.directory .entries-item .entry-name {
     flex-grow: 1;
     text-decoration: none;
     white-space: nowrap;
@@ -35,7 +35,7 @@
     color: var(--black-olive);
 }
 
-.directory .file-item button {
+.directory .entries-item .action-btn {
     color: var(--brown-1);
     white-space: nowrap;
     cursor: pointer;
@@ -43,7 +43,7 @@
     border-radius: 100px;
     background: var(--pink-1);
     border: none;
-    /* min so it doesn't shrink by large file names */
+    /* min so it doesn't shrink by large item names */
     min-width: 40px;
     height: 40px;
     display: flex;
@@ -54,17 +54,17 @@
     transition-timing-function: ease-in-out;
 }
 
-.directory .file-item button:hover {
+.directory .entries-item .action-btn:hover {
     color: var(--brown-2);
     background: var(--pink-2);
 }
 
-.directory .file-item button:active {
+.directory .entries-item .action-btn:active {
     color: var(--brown-3);
     background: var(--pink-3);
 }
 
-.directory .file-item+.file-item {
+.directory .entries-item+.entries-item {
     border-top: 1px solid var(--orange-2);
 }
 

@@ -1,11 +1,15 @@
 package main
 
 import (
+	"archive/zip"
+	"bytes"
 	"fmt"
 	"html/template"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
+	"path"
 	"strings"
 )
 
@@ -18,21 +22,78 @@ type BreadcrumbItem struct {
 	IsLast bool
 }
 
+type MyDirEntry struct {
+	Name        string
+	IsDir       bool
+	DownloadUrl string
+	RelativeUrl string
+}
+
 type PageHomeData struct {
 	Title         string
 	Heading       string
 	CurrentFsPath string
 	CurrentUrl    string
 	ParentUrl     string
-	Files         []os.DirEntry
+	Files         []MyDirEntry
 	Breadcrumbs   []BreadcrumbItem
 }
 
 type MainHandler struct{}
 type MediaHandler struct{}
+type DownloadHandler struct{}
 
 func (MainHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	fmt.Printf("Main handler hit with path: %s\n", r.URL.Path)
+}
+
+func (DownloadHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	fsPath, err := url.QueryUnescape(r.URL.Query().Get("path"))
+
+	if err != nil {
+		fmt.Fprintf(w, "Error intentando descargar el archivo: %s", err.Error())
+	}
+
+	if len(fsPath) == 0 {
+		fmt.Fprint(w, "Nada que descargar")
+		return
+	}
+
+	fmt.Printf("Fs Path: %s\n", fsPath)
+
+	fileInfo, err := os.Lstat(fsPath)
+
+	if err != nil {
+		if os.IsNotExist(err) {
+			// TODO: 404
+			fmt.Fprint(w, "No hay nada aqui")
+			return
+		}
+		log.Fatal(err)
+	}
+
+	if !fileInfo.IsDir() {
+		http.ServeFile(w, r, fsPath)
+		return
+	}
+
+	buf := new(bytes.Buffer)
+	wzip := zip.NewWriter(buf)
+	err = wzip.AddFS(os.DirFS(fsPath))
+
+	if err != nil {
+		fmt.Fprintf(w, "Error al crear el archivo zip: %s", err.Error())
+		return
+	}
+
+	err = wzip.Close()
+
+	if err != nil {
+		fmt.Fprintf(w, "Error al cerrar el archivo zip: %s", err.Error())
+		return
+	}
+
+	w.Write(buf.Bytes())
 }
 
 func (h MediaHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -41,14 +102,13 @@ func (h MediaHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// necesito que si es /media/mi/carpeta
 	// localpath es MEDIA_ROOT/mi/carpeta
 	fsPath := strings.Replace(r.URL.Path, "/media/", MEDIA_ROOT, 1)
-	fmt.Printf("> fsPath : %s\n", fsPath)
 
 	var parentDirPath string
 
 	if !strings.HasSuffix(fsPath, MEDIA_ROOT) {
 		// Url no termina en MEDIA_ROOT
 		s := strings.Split(r.URL.Path, "/")
-		// Quitamos media-query y el ultimo elemento, y unimos para crear el path
+		// Quitamos media-query y el ultimo elemento, y unimos para crear el parent path
 		parentDirPath = strings.Join(s[1:len(s)-1], "/")
 	}
 
@@ -78,7 +138,20 @@ func (h MediaHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	// TODO: handle symlinks?
 	if fileInfo.IsDir() {
-		files, err := os.ReadDir(fsPath)
+		osFiles, err := os.ReadDir(fsPath)
+
+		files := make([]MyDirEntry, len(osFiles))
+
+		for i := range osFiles {
+			name := osFiles[i].Name()
+
+			files[i] = MyDirEntry{
+				Name:        name,
+				IsDir:       osFiles[i].IsDir(),
+				RelativeUrl: path.Join(r.URL.Path, name),
+				DownloadUrl: "/download?path=" + url.QueryEscape(path.Join(fsPath, name)),
+			}
+		}
 
 		if err != nil {
 			handleOsError(err)
@@ -91,35 +164,18 @@ func (h MediaHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		currentBaseUrl.WriteString("/")
 		urlParts := strings.Split(r.URL.Path, "/")
 
-		fmt.Print(">>> antes: ")
-		for i := range urlParts {
-			fmt.Printf(" '%s' ", urlParts[i])
-		}
-		fmt.Print("\n")
-
-		fmt.Printf(">>> >>> len of '%s' (i=%d): %d\n", urlParts[0], 0, len(urlParts[0]))
-		fmt.Printf(">>> >>> len of '%s' (i=%d): %d\n", urlParts[len(urlParts)-1], len(urlParts)-1, len(urlParts[len(urlParts)-1]))
-
 		// quita primer elemento por que "/media" = "['', 'media']"
-		if len(urlParts[0]) == 0 {
-			urlParts = urlParts[1:]
-		}
+		urlParts = urlParts[1:]
 
 		// quita ultimo elemento para cuando ruta termina en "/". En ese caso "media/" = "['media', '']"
 		if len(urlParts[len(urlParts)-1]) == 0 {
 			urlParts = urlParts[:len(urlParts)-1]
 		}
 
-		fmt.Printf(">>> despues: '%s'\n", urlParts)
-
 		for i := range urlParts {
 			label := urlParts[i]
 			currentBaseUrl.WriteString(label)
 			currentBaseUrl.WriteString("/")
-
-			if i == 0 {
-				label = "/"
-			}
 
 			breadcrumbs = append(breadcrumbs, BreadcrumbItem{
 				Label:  label,
@@ -132,8 +188,8 @@ func (h MediaHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		data := PageHomeData{
 			Title:         "Yogusita Media Server",
 			Heading:       "Bienvenid@ a Yogusita Media Server",
-			CurrentFsPath: fsPath,
-			CurrentUrl:    r.URL.Path,
+			CurrentFsPath: strings.TrimSuffix(fsPath, "/"),
+			CurrentUrl:    strings.TrimSuffix(r.URL.Path, "/"),
 			ParentUrl:     parentDirPath,
 			Files:         files,
 			Breadcrumbs:   breadcrumbs,
@@ -158,6 +214,7 @@ func main() {
 
 	mux.Handle("/", MainHandler{})
 	mux.Handle("/media/", MediaHandler{})
+	mux.Handle("/download/", DownloadHandler{})
 	mux.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("static"))))
 
 	fmt.Printf("Listening on port %s\n", PORT)
