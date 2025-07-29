@@ -21,8 +21,12 @@
     justify-content: start;
     padding: 10px 15px;
     height: 30px;
-    background-color: #fff4f0;
+    background-color: var(--orange-1);
     align-items: center;
+}
+
+.directory .entries-item[data-hidden='true'] {
+    display: none;
 }
 
 .directory .entries-item .entry-name {
@@ -105,6 +109,15 @@
     background: var(--pink-3);
 }
 
+#search_input {
+    outline: none;
+    padding: 8px 12px;
+    margin-bottom: 12px;
+    background: var(--orange-1);
+    border: 1px solid var(--pink-3);
+    border-radius: 8px;
+}
+
 @media (max-width: 768px) {
     .entry-mod-date {
         display: none;
@@ -112,5 +125,9 @@
 
     .entry-size {
         display: none;
+    }
+
+    #search_input {
+        width: 100%;
     }
 }

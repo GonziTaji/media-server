@@ -7,6 +7,10 @@
 
     <p>Lista de archivos en {{.CurrentFsPath}}</p>
 
+    <div>
+        <input type="search" id="search_input" placeholder="Busca en este directorio" />
+    </div>
+
     <ul class="breadcrumbs">
         {{ range $index, $value := .Breadcrumbs }}
             {{ if .IsLast }}
@@ -33,7 +37,7 @@
 
     <ul class="entries-list">
         {{ range .Files }}
-        <li class="entries-item">
+        <li class="entries-item" data-name="{{ .Name }}">
             <a class="entry-name" href="{{ .RelativeUrl }}" {{ if eq .IsDir false }} target="_blank" {{ end }}>
                 {{ if eq .IsDir true }} 📁 {{ else }} 📄 {{ end }}
                 {{ .Name }}
@@ -49,6 +53,18 @@
         {{ end }}
     </ul>
 </div>
+
+<script>
+    search_input.addEventListener("input", ev => {
+        const s = ev.target.value
+
+        document.querySelectorAll(`.entries-item`).forEach(el => el.removeAttribute("data-hidden"))
+
+        if (s) {
+            document.querySelectorAll(`.entries-item:not([data-name*=${s}])`).forEach(el => el.setAttribute("data-hidden", true))
+        }
+    })
+</script>
 
 {{ end }}
 
