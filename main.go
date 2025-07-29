@@ -10,7 +10,9 @@ import (
 	"net/url"
 	"os"
 	"path"
+	"sort"
 	"strings"
+	"time"
 )
 
 const PORT = ":8080"
@@ -29,6 +31,7 @@ type MyDirEntry struct {
 	RelativeUrl string
 	ModDate     string
 	Size        string
+	RawModDate  time.Time // for sorting
 }
 
 type PageHomeData struct {
@@ -43,7 +46,7 @@ type PageHomeData struct {
 
 func HumanizeBytes(bytes int64) string {
 	const (
-		// 1 << X = 2^x
+		// 1 << x = 2^x
 		KB = 1 << 10
 		MB = 1 << 20
 		GB = 1 << 30
@@ -181,15 +184,19 @@ func (h MediaHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			}
 
 			files[i] = MyDirEntry{
-				Name:  name,
-				IsDir: file.IsDir(),
-				// Format uses numbers to identify the format: 02=day, 01=month, 15=hour, etc.
+				Name:        name,
+				IsDir:       file.IsDir(),
 				ModDate:     info.ModTime().Local().Format("02/01/06 15:04"),
+				RawModDate:  info.ModTime().Local(),
 				Size:        HumanizeBytes(info.Size()),
 				RelativeUrl: path.Join(r.URL.Path, name),
 				DownloadUrl: "/download?path=" + url.QueryEscape(path.Join(fsPath, name)),
 			}
 		}
+
+		sort.Slice(files, func(i, j int) bool {
+			return files[i].RawModDate.After(files[j].RawModDate)
+		})
 
 		if err != nil {
 			handleOsError(err)
