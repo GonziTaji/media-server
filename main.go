@@ -35,13 +35,11 @@ type MyDirEntry struct {
 }
 
 type PageHomeData struct {
-	Title         string
-	Heading       string
-	CurrentFsPath string
-	CurrentUrl    string
-	ParentUrl     string
-	Files         []MyDirEntry
-	Breadcrumbs   []BreadcrumbItem
+	Title       string
+	CurrentUrl  string
+	ParentUrl   string
+	Files       []MyDirEntry
+	Breadcrumbs []BreadcrumbItem
 }
 
 func HumanizeBytes(bytes int64) string {
@@ -228,15 +226,15 @@ func (h MediaHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			})
 		}
 
+		currentUrl := strings.TrimSuffix(r.URL.Path, "/")
+
 		tmpl := template.Must(template.ParseFiles("templates/base.tmpl", "templates/directory.tmpl"))
 		data := PageHomeData{
-			Title:         "Yogusita Media Server",
-			Heading:       "Bienvenid@ a Yogusita Media Server",
-			CurrentFsPath: strings.TrimSuffix(fsPath, "/"),
-			CurrentUrl:    strings.TrimSuffix(r.URL.Path, "/"),
-			ParentUrl:     parentDirPath,
-			Files:         files,
-			Breadcrumbs:   breadcrumbs,
+			Title:       fmt.Sprintf("Yogusita - %s", currentUrl),
+			CurrentUrl:  currentUrl,
+			ParentUrl:   parentDirPath,
+			Files:       files,
+			Breadcrumbs: breadcrumbs,
 		}
 
 		if err := tmpl.ExecuteTemplate(w, "base.tmpl", data); err != nil {

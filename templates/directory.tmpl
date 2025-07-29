@@ -3,37 +3,33 @@
 <div class="directory">
     <link rel="stylesheet" type="text/css" href="/static/css/directory.css">
 
-    <h1>{{.Heading}}</h1>
-
-    <p>Lista de archivos en {{.CurrentFsPath}}</p>
-
-    <div>
+    <div class="header">
         <input type="search" id="search_input" placeholder="Busca en este directorio" />
+
+        <ul class="breadcrumbs">
+            {{ range $index, $value := .Breadcrumbs }}
+                {{ if .IsLast }}
+                    <li>
+                        <span >{{ .Label }}</span>
+                    </li>
+                {{ else }}
+                    <li>
+                        <a href="{{ .Url }}">
+                        {{ if eq $index 0 }}
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-house-icon lucide-house"><path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8"/><path d="M3 10a2 2 0 0 1 .709-1.528l7-5.999a2 2 0 0 1 2.582 0l7 5.999A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+                        {{ else }}
+                            {{ .Label }}
+                        {{ end }}
+                        </a>
+                    </li>
+
+                    <li>
+                        <span> &gt; </span>
+                    </li>
+                {{ end }}
+            {{end}}
+        </ul>
     </div>
-
-    <ul class="breadcrumbs">
-        {{ range $index, $value := .Breadcrumbs }}
-            {{ if .IsLast }}
-                <li>
-                    <span >{{ .Label }}</span>
-                </li>
-            {{ else }}
-                <li>
-                    <a href="{{ .Url }}">
-                    {{ if eq $index 0 }}
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-house-icon lucide-house"><path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8"/><path d="M3 10a2 2 0 0 1 .709-1.528l7-5.999a2 2 0 0 1 2.582 0l7 5.999A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
-                    {{ else }}
-                        {{ .Label }}
-                    {{ end }}
-                    </a>
-                </li>
-
-                <li>
-                    <span> &gt; </span>
-                </li>
-            {{ end }}
-        {{end}}
-    </ul>
 
     <ul class="entries-list">
         {{ range .Files }}
