@@ -7,10 +7,12 @@
 - Sorting
     - Something by default
         - Name? last accesed? Last modified?
+            - DONE - By last modified.
         - Directories first?
     - Frontend code?
 - Searching
-    - Definetively Frontend code
+    - DONE - Definetively Frontend code
+    - fzf in all directories
 - File info
     - Size
     - Date created / Last updated (with Lstat for each file? slow maybe?)

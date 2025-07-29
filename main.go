@@ -16,7 +16,8 @@ import (
 )
 
 const PORT = ":8080"
-const MEDIA_ROOT = "/home/yogusita/"
+
+var MEDIA_ROOT string
 
 type BreadcrumbItem struct {
 	Label  string
@@ -245,6 +246,16 @@ func (h MediaHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	http.ServeFile(w, r, fsPath)
+}
+
+func init() {
+	MEDIA_ROOT = os.Getenv("MEDIA_ROOT")
+
+	if v := os.Getenv("MEDIA_ROOT"); v != "" {
+		MEDIA_ROOT = v
+	} else {
+		log.Fatal("Env var MEDIA_ROOT not found")
+	}
 }
 
 func main() {
