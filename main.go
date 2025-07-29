@@ -27,6 +27,8 @@ type MyDirEntry struct {
 	IsDir       bool
 	DownloadUrl string
 	RelativeUrl string
+	ModDate     string
+	Size        string
 }
 
 type PageHomeData struct {
@@ -37,6 +39,31 @@ type PageHomeData struct {
 	ParentUrl     string
 	Files         []MyDirEntry
 	Breadcrumbs   []BreadcrumbItem
+}
+
+func HumanizeBytes(bytes int64) string {
+	const (
+		// 1 << X = 2^x
+		KB = 1 << 10
+		MB = 1 << 20
+		GB = 1 << 30
+		TB = 1 << 40
+	)
+
+	float := float64(bytes)
+
+	switch {
+	case bytes >= TB:
+		return fmt.Sprintf("%.1fTB", float/float64(TB))
+	case bytes >= GB:
+		return fmt.Sprintf("%.1fGB", float/float64(GB))
+	case bytes >= MB:
+		return fmt.Sprintf("%.1fMB", float/float64(MB))
+	case bytes >= KB:
+		return fmt.Sprintf("%.0fKB", float/float64(KB))
+	default:
+		return fmt.Sprintf("%dB", bytes)
+	}
 }
 
 type MainHandler struct{}
@@ -142,12 +169,23 @@ func (h MediaHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 		files := make([]MyDirEntry, len(osFiles))
 
-		for i := range osFiles {
-			name := osFiles[i].Name()
+		for i, file := range osFiles {
+			name := file.Name()
+
+			info, err := file.Info()
+
+			if err != nil {
+				// TODO: decidir que hacer aqui
+				fmt.Println(err.Error())
+				continue
+			}
 
 			files[i] = MyDirEntry{
-				Name:        name,
-				IsDir:       osFiles[i].IsDir(),
+				Name:  name,
+				IsDir: file.IsDir(),
+				// Format uses numbers to identify the format: 02=day, 01=month, 15=hour, etc.
+				ModDate:     info.ModTime().Local().Format("02/01/06 15:04"),
+				Size:        HumanizeBytes(info.Size()),
 				RelativeUrl: path.Join(r.URL.Path, name),
 				DownloadUrl: "/download?path=" + url.QueryEscape(path.Join(fsPath, name)),
 			}
@@ -172,13 +210,12 @@ func (h MediaHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			urlParts = urlParts[:len(urlParts)-1]
 		}
 
-		for i := range urlParts {
-			label := urlParts[i]
-			currentBaseUrl.WriteString(label)
+		for i, part := range urlParts {
+			currentBaseUrl.WriteString(part)
 			currentBaseUrl.WriteString("/")
 
 			breadcrumbs = append(breadcrumbs, BreadcrumbItem{
-				Label:  label,
+				Label:  part,
 				Url:    currentBaseUrl.String(),
 				IsLast: i == len(urlParts)-1,
 			})

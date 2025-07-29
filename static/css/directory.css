@@ -23,7 +23,6 @@
     height: 30px;
     background-color: #fff4f0;
     align-items: center;
-    gap: 1rem;
 }
 
 .directory .entries-item .entry-name {
@@ -35,6 +34,17 @@
     color: var(--black-olive);
 }
 
+.directory .entries-item .entry-mod-date {
+    min-width: 120px;
+    font-size: 0.8rem;
+}
+
+.directory .entries-item .entry-size {
+    text-align: end;
+    min-width: 48px;
+    font-size: 0.8rem;
+}
+
 .directory .entries-item .action-btn {
     color: var(--brown-1);
     white-space: nowrap;
@@ -43,7 +53,6 @@
     border-radius: 100px;
     background: var(--pink-1);
     border: none;
-    /* min so it doesn't shrink by large item names */
     min-width: 40px;
     height: 40px;
     display: flex;
@@ -52,6 +61,10 @@
     transition: background-color, color;
     transition-duration: 200ms;
     transition-timing-function: ease-in-out;
+}
+
+.directory .entries-item .action-btn:nth-child(1 of .action-btn) {
+    margin-left: 20px;
 }
 
 .directory .entries-item .action-btn:hover {
@@ -90,4 +103,14 @@
 .directory .breadcrumbs a:active {
     color: var(--brown-3);
     background: var(--pink-3);
+}
+
+@media (max-width: 768px) {
+    .entry-mod-date {
+        display: none;
+    }
+
+    .entry-size {
+        display: none;
+    }
 }
