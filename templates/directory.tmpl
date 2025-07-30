@@ -4,7 +4,15 @@
     <link rel="stylesheet" type="text/css" href="/static/css/directory.css">
 
     <div class="header">
-        <input type="search" id="search_input" placeholder="Busca en este directorio" />
+        <div class="search-container">
+            <input type="search" id="search_input" placeholder="Busca en este directorio" />
+            <button type="button" id="recursive_search_btn">
+                Busqueda recursiva
+            </button>
+            <button type="button" id="reset_search_btn">
+                Limpiar
+            </button>
+        </div>
 
         <ul class="breadcrumbs">
             {{ range $index, $value := .Breadcrumbs }}
@@ -51,15 +59,41 @@
 </div>
 
 <script>
-    search_input.addEventListener("input", ev => {
-        const s = ev.target.value
+    const search = new URLSearchParams(location.search).get("search")
 
+    if (search) {
+        search_input.value = search
+    }
+
+    search_input.addEventListener("input", ev => {
         document.querySelectorAll(`.entries-item`).forEach(el => el.removeAttribute("data-hidden"))
 
-        if (s) {
-            document.querySelectorAll(`.entries-item:not([data-name*=${s}])`).forEach(el => el.setAttribute("data-hidden", true))
+        if (ev.target.value) {
+            const selector = `.entries-item:not([data-name*='${ev.target.value}'])`
+            document.querySelectorAll(selector).forEach(el => el.setAttribute("data-hidden", true))
         }
     })
+
+    recursive_search_btn.addEventListener("click", ev => {
+        applyRecursiveSearch(search_input.value)
+    })
+
+    reset_search_btn.addEventListener("click", ev => {
+         applyRecursiveSearch()
+    })
+
+    function applyRecursiveSearch(s) {
+        const search = search_input.value
+        const url = new URL(location)
+
+        if (s) {
+            url.searchParams.set("search", search)
+        } else {
+            url.searchParams.delete("search")
+        }
+
+        location = url
+    }
 </script>
 
 {{ end }}
