@@ -3,6 +3,7 @@ package main
 import (
 	"archive/zip"
 	"bytes"
+	"encoding/base64"
 	"fmt"
 	"html/template"
 	"io/fs"
@@ -88,6 +89,18 @@ func shouldIgnorePath(path string) bool {
 	return false
 }
 
+func encodeBase64(input string) string {
+	return base64.URLEncoding.EncodeToString([]byte(input))
+}
+
+func decodeBase64(input string) (string, error) {
+	output, err := base64.URLEncoding.DecodeString(input)
+	if err != nil {
+		return "", err
+	}
+	return string(output), nil
+}
+
 type MainHandler struct{}
 type MediaHandler struct{}
 type DownloadHandler struct{}
@@ -108,7 +121,15 @@ func (DownloadHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	fmt.Printf("Fs Path: %s\n", fsPath)
+	lastSlashIdx := strings.LastIndex(fsPath, "/")
+	b64Name := fsPath[lastSlashIdx+1:]
+	fileName, err := decodeBase64(b64Name)
+
+	if err != nil {
+		fmt.Fprintf(w, "Hubo un error procesando el nombre del archivo: %s\n", err.Error())
+	}
+
+	fsPath = path.Join(fsPath[:lastSlashIdx], fileName)
 
 	fileInfo, err := os.Lstat(fsPath)
 
@@ -169,14 +190,21 @@ func GetFiles(root string) ([]MyDirEntry, error) {
 			continue
 		}
 
+		var nameInUrl string
+		if file.IsDir() {
+			nameInUrl = name
+		} else {
+			nameInUrl = encodeBase64(name)
+		}
+
 		files = append(files, MyDirEntry{
 			Name:        name,
 			IsDir:       file.IsDir(),
 			ModDate:     info.ModTime().Local().Format("02/01/06 15:04"),
 			RawModDate:  info.ModTime().Local(),
 			Size:        HumanizeBytes(info.Size()),
-			RelativeUrl: path.Join("/media", root, name),
-			DownloadUrl: "/download?path=" + url.QueryEscape(path.Join(fsPath, name)),
+			RelativeUrl: path.Join("/media", root, nameInUrl),
+			DownloadUrl: "/download?path=" + url.QueryEscape(path.Join(fsPath, nameInUrl)),
 		})
 	}
 
@@ -194,14 +222,12 @@ func FindFiles(root string, search string) ([]MyDirEntry, error) {
 	var files []MyDirEntry
 
 	err := fs.WalkDir(fsDir, ".", func(filePath string, file fs.DirEntry, err error) error {
-		if !file.IsDir() && strings.Contains(file.Name(), search) {
+		if !file.IsDir() && strings.Contains(strings.ToLower(file.Name()), strings.ToLower(search)) {
 			fsFilePath := path.Join(fsPath, filePath)
 
 			if shouldIgnorePath(fsFilePath) {
 				return nil
 			}
-
-			fmt.Printf("found %s\n> relpath=%s\n> fspath=%s\n", file.Name(), filePath, fsFilePath)
 
 			info, err := os.Stat(fsFilePath)
 
@@ -209,13 +235,15 @@ func FindFiles(root string, search string) ([]MyDirEntry, error) {
 				return err
 			}
 
-			fmt.Println("------------------------------------")
-			fmt.Printf("root: %s\n", root)
-			fmt.Printf("rel: %s\n", filePath)
-			fmt.Println("------------------------------------")
+			fileName := file.Name()
+			b64Name := encodeBase64(fileName)
+
+			// cannot do replace in case the name is also in the path
+			fsFilePath = path.Join(strings.TrimSuffix(fsFilePath, fileName), b64Name)
+			filePath = path.Join(strings.TrimSuffix(filePath, fileName), b64Name)
 
 			files = append(files, MyDirEntry{
-				Name:        file.Name(),
+				Name:        fileName,
 				IsDir:       false,
 				ModDate:     info.ModTime().Local().Format("02/01/06 15:04"),
 				RawModDate:  info.ModTime().Local(),
@@ -257,8 +285,33 @@ func (h MediaHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	relPath := strings.TrimPrefix(r.URL.Path, "/media/")
+	lastSlashIdx := strings.LastIndex(relPath, "/")
+
+	var rawName string
+
+	if lastSlashIdx == -1 {
+		rawName = relPath
+	} else {
+		rawName = relPath[lastSlashIdx+1:]
+	}
+
+	decodedName, err := decodeBase64(rawName)
+
+	// if no error, rawName is valod base64
+	if err == nil {
+		if lastSlashIdx == -1 {
+			relPath = decodedName
+		} else {
+			relPath = path.Join(relPath[:lastSlashIdx], decodedName)
+		}
+	}
+
 	fsPath := path.Join(MEDIA_ROOT, relPath)
 	fileInfo, err := os.Lstat(fsPath)
+
+	if err != nil {
+		fmt.Fprintf(w, "Hubo un error procesando el nombre del archivo: %s\n", err.Error())
+	}
 
 	if err != nil {
 		handleError(err)
@@ -294,8 +347,6 @@ func (h MediaHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		// Quitamos media-query y el ultimo elemento, y unimos para crear el parent path
 		parentDirPath = strings.Join(s[1:len(s)-1], "/")
 	}
-
-	fmt.Printf("> parentDirPath : %s\n", parentDirPath)
 
 	var currentBaseUrl strings.Builder
 	var breadcrumbs []BreadcrumbItem
