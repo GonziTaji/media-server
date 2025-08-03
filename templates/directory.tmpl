@@ -1,100 +1,154 @@
 {{ define "content" }}
-
-<div class="directory">
-    <link rel="stylesheet" type="text/css" href="/static/css/directory.css">
-
-    <div class="header">
-        <div class="search-container">
-            <input type="search" id="search_input" placeholder="Busca en este directorio" />
-            <button type="button" id="recursive_search_btn">
-                Busqueda recursiva
-            </button>
-            <button type="button" id="reset_search_btn">
-                Limpiar
-            </button>
-        </div>
-
-        <ul class="breadcrumbs">
-            {{ range $index, $value := .Breadcrumbs }}
-                {{ if .IsLast }}
-                    <li>
-                        <span >{{ .Label }}</span>
-                    </li>
-                {{ else }}
-                    <li>
-                        <a href="{{ .Url }}">
-                        {{ if eq $index 0 }}
-                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-house-icon lucide-house"><path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8"/><path d="M3 10a2 2 0 0 1 .709-1.528l7-5.999a2 2 0 0 1 2.582 0l7 5.999A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
-                        {{ else }}
-                            {{ .Label }}
-                        {{ end }}
-                        </a>
-                    </li>
-
-                    <li>
-                        <span> &gt; </span>
-                    </li>
+    <div class="directory">
+        <link
+            rel="stylesheet"
+            type="text/css"
+            href="/static/css/directory.css"
+        />
+        <div class="header">
+            <div class="search-container">
+                <input
+                    type="search"
+                    id="search_input"
+                    placeholder="Busca en este directorio"
+                />
+                <button type="button" id="recursive_search_btn">
+                    Busqueda recursiva
+                </button>
+                <button type="button" id="reset_search_btn">Limpiar</button>
+            </div>
+            <ul class="breadcrumbs">
+                {{ range $index, $value := .Breadcrumbs }}
+                    {{ if .IsLast }}
+                        <li>
+                            <span>{{ .Label }}</span>
+                        </li>
+                    {{ else }}
+                        <li>
+                            <a href="{{ .Url }}">
+                                {{ if eq $index 0 }}
+                                    <svg
+                                        xmlns="http://www.w3.org/2000/svg"
+                                        width="16"
+                                        height="16"
+                                        viewBox="0 0 24 24"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        stroke-width="2"
+                                        stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                        class="lucide lucide-house-icon lucide-house"
+                                    >
+                                        <path
+                                            d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8"
+                                        />
+                                        <path
+                                            d="M3 10a2 2 0 0 1 .709-1.528l7-5.999a2 2 0 0 1 2.582 0l7 5.999A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"
+                                        />
+                                    </svg>
+                                {{ else }}
+                                    {{ .Label }}
+                                {{ end }}
+                            </a>
+                        </li>
+                        <li>
+                            <span>&gt;</span>
+                        </li>
+                    {{ end }}
                 {{ end }}
-            {{end}}
+            </ul>
+        </div>
+        <ul class="entries-list">
+            {{ range .Files }}
+                <li class="entries-item" data-name="{{ .Name }}">
+                    <a
+                        class="entry-name"
+                        href="{{ .RelativeUrl }}"
+                        {{ if eq .IsDir false }}
+                            target="_blank"
+                        {{ end }}
+                    >
+                        {{ if eq .IsDir true }}
+                            📁
+                        {{ else }}
+                            📄
+                        {{ end }}
+                        {{ .Name }}
+                    </a>
+                    <span class="entry-mod-date">{{ .ModDate }}</span>
+                    <span class="entry-size">{{ .Size }}</span>
+                    <a
+                        class="action-btn"
+                        href="{{ .DownloadUrl }}"
+                        title="Descawrwa"
+                        target="_blank"
+                        download="{{ .Name }}"
+                    >
+                        <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            width="16"
+                            height="16"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            class="lucide lucide-file-down-icon lucide-file-down"
+                        >
+                            <path
+                                d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"
+                            />
+                            <path d="M14 2v4a2 2 0 0 0 2 2h4" />
+                            <path d="M12 18v-6" />
+                            <path d="m9 15 3 3 3-3" />
+                        </svg>
+                    </a>
+                </li>
+            {{ end }}
         </ul>
     </div>
 
-    <ul class="entries-list">
-        {{ range .Files }}
-        <li class="entries-item" data-name="{{ .Name }}">
-            <a class="entry-name" href="{{ .RelativeUrl }}" {{ if eq .IsDir false }} target="_blank" {{ end }}>
-                {{ if eq .IsDir true }} 📁 {{ else }} 📄 {{ end }}
-                {{ .Name }}
-            </a>
+    <script>
+        const search = new URLSearchParams(location.search).get("search");
 
-            <span class="entry-mod-date">{{ .ModDate }}</span>
-            <span class="entry-size">{{ .Size }}</span>
-
-            <a class="action-btn" href="{{ .DownloadUrl }}" title="Descawrwa" target="_blank" download="{{ .Name }}">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-file-down-icon lucide-file-down"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M12 18v-6"/><path d="m9 15 3 3 3-3"/></svg>
-            </a>
-        </li>
-        {{ end }}
-    </ul>
-</div>
-
-<script>
-    const search = new URLSearchParams(location.search).get("search")
-
-    if (search) {
-        search_input.value = search
-    }
-
-    search_input.addEventListener("input", ev => {
-        document.querySelectorAll(`.entries-item`).forEach(el => el.removeAttribute("data-hidden"))
-
-        if (ev.target.value) {
-            const selector = `.entries-item:not([data-name*='${ev.target.value}'])`
-            document.querySelectorAll(selector).forEach(el => el.setAttribute("data-hidden", true))
-        }
-    })
-
-    recursive_search_btn.addEventListener("click", ev => {
-        applyRecursiveSearch(search_input.value)
-    })
-
-    reset_search_btn.addEventListener("click", ev => {
-         applyRecursiveSearch()
-    })
-
-    function applyRecursiveSearch(s) {
-        const search = search_input.value
-        const url = new URL(location)
-
-        if (s) {
-            url.searchParams.set("search", search)
-        } else {
-            url.searchParams.delete("search")
+        if (search) {
+            search_input.value = search;
         }
 
-        location = url
-    }
-</script>
+        search_input.addEventListener("input", (ev) => {
+            document
+                .querySelectorAll(`.entries-item`)
+                .forEach((el) => el.removeAttribute("data-hidden"));
 
+            if (ev.target.value) {
+                document
+                    .querySelectorAll(
+                        `.entries-item:not([data-name*='${ev.target.value}'])`
+                    )
+                    .forEach((el) => el.setAttribute("data-hidden", true));
+            }
+        });
+
+        recursive_search_btn.addEventListener("click", (ev) => {
+            applyRecursiveSearch(search_input.value);
+        });
+
+        reset_search_btn.addEventListener("click", (ev) => {
+            applyRecursiveSearch();
+        });
+
+        function applyRecursiveSearch(s) {
+            const search = search_input.value;
+            const url = new URL(location);
+
+            if (s) {
+                url.searchParams.set("search", search);
+            } else {
+                url.searchParams.delete("search");
+            }
+
+            location = url;
+        }
+    </script>
 {{ end }}
-
