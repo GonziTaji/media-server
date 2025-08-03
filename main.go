@@ -89,16 +89,29 @@ func shouldIgnorePath(path string) bool {
 	return false
 }
 
-func encodeBase64(input string) string {
-	return base64.URLEncoding.EncodeToString([]byte(input))
+const base64Prefix = "b64"
+const base64PrefixSeparator = ":"
+
+var base64PrefixWithSeparator = strings.Join([]string{base64Prefix, base64PrefixSeparator}, "")
+
+func encodeBase64WithPrefix(input string) string {
+	encoded := base64.URLEncoding.EncodeToString([]byte(input))
+	return strings.Join([]string{base64Prefix, encoded}, base64PrefixSeparator)
 }
 
-func decodeBase64(input string) (string, error) {
-	output, err := base64.URLEncoding.DecodeString(input)
+func decodeBase64WithPrefix(input string) (string, error) {
+	encoded := strings.TrimPrefix(input, base64PrefixWithSeparator)
+	output, err := base64.URLEncoding.DecodeString(encoded)
+
 	if err != nil {
 		return "", err
 	}
+
 	return string(output), nil
+}
+
+func hasBase64Prefix(input string) bool {
+	return strings.HasPrefix(input, base64PrefixWithSeparator)
 }
 
 type MainHandler struct{}
@@ -122,11 +135,14 @@ func (DownloadHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	lastSlashIdx := strings.LastIndex(fsPath, "/")
-	b64Name := fsPath[lastSlashIdx+1:]
-	fileName, err := decodeBase64(b64Name)
+	fileName := fsPath[lastSlashIdx+1:]
 
-	if err != nil {
-		fmt.Fprintf(w, "Hubo un error procesando el nombre del archivo: %s\n", err.Error())
+	if hasBase64Prefix(fileName) {
+		fileName, err = decodeBase64WithPrefix(fileName)
+
+		if err != nil {
+			fmt.Fprintf(w, "Hubo un error procesando el nombre del archivo: %s\n", err.Error())
+		}
 	}
 
 	fsPath = path.Join(fsPath[:lastSlashIdx], fileName)
@@ -194,7 +210,7 @@ func GetFiles(root string) ([]MyDirEntry, error) {
 		if file.IsDir() {
 			nameInUrl = name
 		} else {
-			nameInUrl = encodeBase64(name)
+			nameInUrl = encodeBase64WithPrefix(name)
 		}
 
 		files = append(files, MyDirEntry{
@@ -236,7 +252,7 @@ func FindFiles(root string, search string) ([]MyDirEntry, error) {
 			}
 
 			fileName := file.Name()
-			b64Name := encodeBase64(fileName)
+			b64Name := encodeBase64WithPrefix(fileName)
 
 			// cannot do replace in case the name is also in the path
 			fsFilePath = path.Join(strings.TrimSuffix(fsFilePath, fileName), b64Name)
@@ -287,22 +303,27 @@ func (h MediaHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	relPath := strings.TrimPrefix(r.URL.Path, "/media/")
 	lastSlashIdx := strings.LastIndex(relPath, "/")
 
-	var rawName string
+	var fileName string
 
 	if lastSlashIdx == -1 {
-		rawName = relPath
+		fileName = relPath
 	} else {
-		rawName = relPath[lastSlashIdx+1:]
+		fileName = relPath[lastSlashIdx+1:]
 	}
 
-	decodedName, err := decodeBase64(rawName)
+	if hasBase64Prefix(fileName) {
+		var err error
+		fileName, err = decodeBase64WithPrefix(fileName)
 
-	// if no error, rawName is valod base64
-	if err == nil {
+		if err != nil {
+			fmt.Fprintf(w, "Error decodificando nombre de archivo %s: %s\n", fileName, err.Error())
+			return
+		}
+
 		if lastSlashIdx == -1 {
-			relPath = decodedName
+			relPath = fileName
 		} else {
-			relPath = path.Join(relPath[:lastSlashIdx], decodedName)
+			relPath = path.Join(relPath[:lastSlashIdx], fileName)
 		}
 	}
 
