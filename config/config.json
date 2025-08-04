@@ -1,0 +1,4 @@
+{
+    "ignore_paths": ["node_modules", "go/pkg", ".git", ".cache"],
+    "base_64_name_prefix": "b64:"
+}

@@ -17,17 +17,6 @@ import (
 	"time"
 )
 
-const PORT = ":8080"
-
-// TODO: Poner esto en un archivo externo y leerlo en runtime
-var IGNORE_PATHS = []string{
-	"node_modules",
-	"go/pkg",
-	".git",
-}
-
-var MEDIA_ROOT string
-
 type BreadcrumbItem struct {
 	Label  string
 	Url    string
@@ -78,7 +67,9 @@ func HumanizeBytes(bytes int64) string {
 }
 
 func shouldIgnorePath(path string) bool {
-	for _, ignore := range IGNORE_PATHS {
+	ignorePaths := GetConfig().IgnorePaths
+
+	for _, ignore := range ignorePaths {
 		if strings.Contains(path, "/"+ignore+"/") ||
 			strings.HasPrefix(path, ignore+"/") ||
 			strings.HasSuffix(path, "/"+ignore) ||
@@ -89,18 +80,17 @@ func shouldIgnorePath(path string) bool {
 	return false
 }
 
-const base64Prefix = "b64"
-const base64PrefixSeparator = ":"
-
-var base64PrefixWithSeparator = strings.Join([]string{base64Prefix, base64PrefixSeparator}, "")
-
 func encodeBase64WithPrefix(input string) string {
+	base64Prefix := GetConfig().Base64NamePrefix
+
 	encoded := base64.URLEncoding.EncodeToString([]byte(input))
-	return strings.Join([]string{base64Prefix, encoded}, base64PrefixSeparator)
+	return strings.Join([]string{base64Prefix, encoded}, "")
 }
 
 func decodeBase64WithPrefix(input string) (string, error) {
-	encoded := strings.TrimPrefix(input, base64PrefixWithSeparator)
+	base64Prefix := GetConfig().Base64NamePrefix
+
+	encoded := strings.TrimPrefix(input, base64Prefix)
 	output, err := base64.URLEncoding.DecodeString(encoded)
 
 	if err != nil {
@@ -111,7 +101,7 @@ func decodeBase64WithPrefix(input string) (string, error) {
 }
 
 func hasBase64Prefix(input string) bool {
-	return strings.HasPrefix(input, base64PrefixWithSeparator)
+	return strings.HasPrefix(input, GetConfig().Base64NamePrefix)
 }
 
 type MainHandler struct{}
@@ -410,14 +400,27 @@ func (h MediaHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func init() {
-	MEDIA_ROOT = os.Getenv("MEDIA_ROOT")
+const PORT = ":8080"
 
-	if v := os.Getenv("MEDIA_ROOT"); v != "" {
-		MEDIA_ROOT = v
-	} else {
-		log.Fatal("Env var MEDIA_ROOT not found")
+const mediaRootEnvVarKey = "YMS_MEDIA_ROOT"
+var MEDIA_ROOT string = os.Getenv(mediaRootEnvVarKey)
+
+func init() {
+	if MEDIA_ROOT == "" {
+		log.Fatalf("Env var %s not found", mediaRootEnvVarKey)
 	}
+
+	fmt.Printf("Root directory set to \"%s\"\n", MEDIA_ROOT)
+
+	config := GetConfig()
+
+	if config.Base64NamePrefix == "" {
+		log.Fatalln("Invalid configuration: \"base_64_name_prefix\" is required")
+	}
+
+	fmt.Println("Config found:")
+	fmt.Printf("- Base64NamePrefix: %s\n", config.Base64NamePrefix)
+	fmt.Printf("- IgnorePaths: %v\n", config.IgnorePaths)
 }
 
 func main() {
