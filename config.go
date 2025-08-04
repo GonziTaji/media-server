@@ -28,8 +28,8 @@ func GetConfig() AppConfig {
 	info, err := os.Stat(configPath)
 
 	if err != nil {
-		fmt.Printf("Error obteniendo informacion de archivo de configuracion en %s. Error: %s\n", configPath, err.Error())
-		fmt.Println("Usando version en memoria")
+		fmt.Printf("Error getting file info from the configuration file in \"%s\". Error: %s\n", configPath, err.Error())
+		fmt.Println("Using cached version")
 		return cache
 	}
 
@@ -40,22 +40,22 @@ func GetConfig() AppConfig {
 	data, err := os.ReadFile(configPath)
 
 	if err != nil {
-		fmt.Printf("Error leyendo archivo de configuracion en %s. Error: %s\n", configPath, err.Error())
-		fmt.Println("Usando version en memoria")
+		fmt.Printf("Error reading the configuration file in \"%s\". Error: %s\n", configPath, err.Error())
+		fmt.Println("Using cached version")
 		return cache
 	}
 
 	var newAppConfig AppConfig
 
 	if err := json.Unmarshal(data, &newAppConfig); err != nil {
-		fmt.Printf("Configuracion en %s invalida: %s \n", configPath, err.Error())
-		fmt.Println("Usando version en memoria")
+		fmt.Printf("Invalid configuration in \"%s\": %s \n", configPath, err.Error())
+		fmt.Println("Using cached version")
 		return cache
 	}
 
 	if newAppConfig.Base64NamePrefix == "" {
-		fmt.Println("Error validando configuracion. \"base_64_name_prefix\" vacio. Campo es requerido")
-		fmt.Println("Usando version en memoria")
+		fmt.Println("Invalid configuration value for \"base_64_name_prefix\". Expected: not empty. Found: \"\"")
+		fmt.Println("Using cached version")
 		return cache
 	}
 

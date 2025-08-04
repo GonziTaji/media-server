@@ -116,11 +116,11 @@ func (DownloadHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	fsPath, err := url.QueryUnescape(r.URL.Query().Get("path"))
 
 	if err != nil {
-		fmt.Fprintf(w, "Error intentando descargar el archivo: %s", err.Error())
+		fmt.Fprintf(w, "Error trying to download file \"%s\": %s", fsPath, err.Error())
 	}
 
 	if len(fsPath) == 0 {
-		fmt.Fprint(w, "Nada que descargar")
+		fmt.Fprint(w, "Nothing to download")
 		return
 	}
 
@@ -131,7 +131,7 @@ func (DownloadHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		fileName, err = decodeBase64WithPrefix(fileName)
 
 		if err != nil {
-			fmt.Fprintf(w, "Hubo un error procesando el nombre del archivo: %s\n", err.Error())
+			fmt.Fprintf(w, "Error processing the file name \"%s\": %s\n", fileName, err.Error())
 		}
 	}
 
@@ -142,7 +142,7 @@ func (DownloadHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		if os.IsNotExist(err) {
 			// TODO: 404
-			fmt.Fprint(w, "No hay nada aqui")
+			fmt.Fprint(w, "Nothing here")
 			return
 		}
 		log.Fatal(err)
@@ -158,14 +158,14 @@ func (DownloadHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	err = wzip.AddFS(os.DirFS(fsPath))
 
 	if err != nil {
-		fmt.Fprintf(w, "Error al crear el archivo zip: %s", err.Error())
+		fmt.Fprintf(w, "Error writing zip archive: %s", err.Error())
 		return
 	}
 
 	err = wzip.Close()
 
 	if err != nil {
-		fmt.Fprintf(w, "Error al cerrar el archivo zip: %s", err.Error())
+		fmt.Fprintf(w, "Error creating zip archive: %s", err.Error())
 		return
 	}
 
@@ -282,7 +282,7 @@ func (h MediaHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 		if errIsNotExist {
 			// TODO: ir a pagina 404
-			fmt.Fprintln(w, "No hay nada aqui")
+			fmt.Fprintln(w, "Nothing here")
 			return
 		}
 
@@ -306,7 +306,7 @@ func (h MediaHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		fileName, err = decodeBase64WithPrefix(fileName)
 
 		if err != nil {
-			fmt.Fprintf(w, "Error decodificando nombre de archivo %s: %s\n", fileName, err.Error())
+			fmt.Fprintf(w, "Error decoding the file name \"%s\": %s\n", fileName, err.Error())
 			return
 		}
 
@@ -319,10 +319,6 @@ func (h MediaHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	fsPath := path.Join(MEDIA_ROOT, relPath)
 	fileInfo, err := os.Lstat(fsPath)
-
-	if err != nil {
-		fmt.Fprintf(w, "Hubo un error procesando el nombre del archivo: %s\n", err.Error())
-	}
 
 	if err != nil {
 		handleError(err)
