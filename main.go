@@ -4,8 +4,10 @@ import (
 	"archive/zip"
 	"bytes"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"html/template"
+	"io"
 	"io/fs"
 	"log"
 	"media-server/config"
@@ -39,6 +41,7 @@ type PageHomeData struct {
 	Title       string
 	CurrentUrl  string
 	ParentUrl   string
+	FsRelPath   string
 	Files       []MyDirEntry
 	Breadcrumbs []BreadcrumbItem
 }
@@ -106,39 +109,48 @@ func hasBase64Prefix(input string) bool {
 	return strings.HasPrefix(input, config.GetConfig().Base64NamePrefix)
 }
 
-type MainHandler struct{}
-type MediaHandler struct{}
-type DownloadHandler struct{}
-type UploadHandler struct{}
-
-func (MainHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	fmt.Printf("Main handler hit with path: %s\n", r.URL.Path)
-}
-
-func (DownloadHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	queryPath, err := url.QueryUnescape(r.URL.Query().Get("path"))
+/// Returns the absolute media path. Returns an error if the path is invalid, or outside MEDIA_ROOT
+func getAbsoluteMediaPath(rawEscapedPath string) (string, error) {
+	queryPath, err := url.QueryUnescape(rawEscapedPath)
 
 	if err != nil {
 		// TODO: replicate this Error usage in other parts of the server
-		http.Error(w,fmt.Sprintf("Error trying to download file \"%s\": %s", queryPath, err.Error()), http.StatusForbidden);
-		return;
+		return "", err;
 	}
 
 	if len(queryPath) == 0 {
-		fmt.Fprint(w, "Invalid path")
-		return
+		return "", errors.New("Invalid path")
 	}
-
-	fmt.Printf("Download path: %s\n", queryPath);
 
 	absMedia, _ := filepath.Abs(MEDIA_ROOT);
 	absPath, _ := filepath.Abs(filepath.Join(absMedia, queryPath));
 
 	rel, err := filepath.Rel(absMedia, absPath)
 
-	if err != nil || strings.HasPrefix(rel, "..") {
-		http.Error(w, "Invalid path", http.StatusForbidden)
-		return
+	if err != nil {
+		return "", err
+	}
+
+	if strings.HasPrefix(rel, "..") {
+		return "", errors.New("Invalid path")
+	}
+
+	return absPath, nil
+}
+
+type MainHandler struct{}
+func (MainHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	fmt.Printf("Main handler hit with path: %s\n", r.URL.Path)
+}
+
+type DownloadHandler struct{}
+func (DownloadHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	absPath, err := getAbsoluteMediaPath(r.URL.Query().Get("path"))
+
+	if err != nil {
+		// TODO: replicate this Error usage in other parts of the server
+		http.Error(w,err.Error(), http.StatusBadRequest);
+		return;
 	}
 
 	lastSlashIdx := strings.LastIndex(absPath, "/")
@@ -291,21 +303,54 @@ func FindFiles(root string, search string) ([]MyDirEntry, error) {
 	return files, nil
 }
 
+type UploadHandler struct{}
 func (h UploadHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	// file, header, err := r.FormFile("file");
-	//
-	// if (err != nil) {
-	// 	fmt.Fprintf(w, "Error uploading file: %s\n", err.Error())
-	// 	return;
-	// }
-	//
-	// defer file.Close();
-	//
-	// destinationPath := r.FormValue("destination")
+	fmt.Println("UploadHandler IN")
 
-	
+	err := r.ParseMultipartForm(10 << 20) // 10 MB
+
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Error parsing multipart request: %s", err.Error()), http.StatusBadRequest)
+		return;
+	}
+
+	rawFile, header, err := r.FormFile("file");
+
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Error reading multipart file: %s", err.Error()), http.StatusBadRequest)
+		return;
+	}
+
+	defer rawFile.Close();
+
+	destinationPath := r.FormValue("path")
+
+	absFilePath, err := getAbsoluteMediaPath(filepath.Join(destinationPath, header.Filename))
+
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Error getting file path: %s", err.Error()), http.StatusBadRequest)
+		return
+	}
+
+	fsFile, err := os.Create(absFilePath)
+
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Error creating file: %s", err.Error()), http.StatusBadRequest)
+		return
+	}
+
+	defer fsFile.Close()
+
+	if _, err := io.Copy(fsFile, rawFile); err != nil {
+		http.Error(w, "Error saving file", http.StatusInternalServerError)
+		return
+	}
+
+	redirectUrl := r.FormValue("current_url")
+	http.Redirect(w, r, redirectUrl, http.StatusSeeOther)
 }
 
+type MediaHandler struct{}
 func (h MediaHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	fmt.Printf("Media handler hit with path: %s\n", r.URL.Path)
 
@@ -418,6 +463,7 @@ func (h MediaHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	tmpl := template.Must(template.ParseFiles("templates/base.tmpl", "templates/directory.tmpl"))
 	data := PageHomeData{
 		Title:       fmt.Sprintf("Yogusita - %s", currentUrl),
+		FsRelPath:   relPath,
 		CurrentUrl:  currentUrl,
 		ParentUrl:   parentDirPath,
 		Files:       files,
@@ -462,7 +508,7 @@ func main() {
 	mux.Handle("/", MainHandler{})
 	mux.Handle("/media/", MediaHandler{})
 	mux.Handle("/download/", DownloadHandler{})
-	mux.Handle("/upload/", UploadHandler{})
+	mux.Handle("/upload", UploadHandler{})
 	mux.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("static"))))
 
 	fmt.Printf("Listening on port %s\n", PORT)
