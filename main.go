@@ -8,10 +8,12 @@ import (
 	"html/template"
 	"io/fs"
 	"log"
+	"media-server/config"
 	"net/http"
 	"net/url"
 	"os"
 	"path"
+	"path/filepath"
 	"sort"
 	"strings"
 	"time"
@@ -67,7 +69,7 @@ func HumanizeBytes(bytes int64) string {
 }
 
 func shouldIgnorePath(path string) bool {
-	ignorePaths := GetConfig().IgnorePaths
+	ignorePaths := config.GetConfig().IgnorePaths
 
 	for _, ignore := range ignorePaths {
 		if strings.Contains(path, "/"+ignore+"/") ||
@@ -81,14 +83,14 @@ func shouldIgnorePath(path string) bool {
 }
 
 func encodeBase64WithPrefix(input string) string {
-	base64Prefix := GetConfig().Base64NamePrefix
+	base64Prefix := config.GetConfig().Base64NamePrefix
 
 	encoded := base64.URLEncoding.EncodeToString([]byte(input))
 	return strings.Join([]string{base64Prefix, encoded}, "")
 }
 
 func decodeBase64WithPrefix(input string) (string, error) {
-	base64Prefix := GetConfig().Base64NamePrefix
+	base64Prefix := config.GetConfig().Base64NamePrefix
 
 	encoded := strings.TrimPrefix(input, base64Prefix)
 	output, err := base64.URLEncoding.DecodeString(encoded)
@@ -101,43 +103,59 @@ func decodeBase64WithPrefix(input string) (string, error) {
 }
 
 func hasBase64Prefix(input string) bool {
-	return strings.HasPrefix(input, GetConfig().Base64NamePrefix)
+	return strings.HasPrefix(input, config.GetConfig().Base64NamePrefix)
 }
 
 type MainHandler struct{}
 type MediaHandler struct{}
 type DownloadHandler struct{}
+type UploadHandler struct{}
 
 func (MainHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	fmt.Printf("Main handler hit with path: %s\n", r.URL.Path)
 }
 
 func (DownloadHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	fsPath, err := url.QueryUnescape(r.URL.Query().Get("path"))
+	queryPath, err := url.QueryUnescape(r.URL.Query().Get("path"))
 
 	if err != nil {
-		fmt.Fprintf(w, "Error trying to download file \"%s\": %s", fsPath, err.Error())
+		// TODO: replicate this Error usage in other parts of the server
+		http.Error(w,fmt.Sprintf("Error trying to download file \"%s\": %s", queryPath, err.Error()), http.StatusForbidden);
+		return;
 	}
 
-	if len(fsPath) == 0 {
-		fmt.Fprint(w, "Nothing to download")
+	if len(queryPath) == 0 {
+		fmt.Fprint(w, "Invalid path")
 		return
 	}
 
-	lastSlashIdx := strings.LastIndex(fsPath, "/")
-	fileName := fsPath[lastSlashIdx+1:]
+	fmt.Printf("Download path: %s\n", queryPath);
+
+	absMedia, _ := filepath.Abs(MEDIA_ROOT);
+	absPath, _ := filepath.Abs(filepath.Join(absMedia, queryPath));
+
+	rel, err := filepath.Rel(absMedia, absPath)
+
+	if err != nil || strings.HasPrefix(rel, "..") {
+		http.Error(w, "Invalid path", http.StatusForbidden)
+		return
+	}
+
+	lastSlashIdx := strings.LastIndex(absPath, "/")
+	fileName := absPath[lastSlashIdx+1:]
 
 	if hasBase64Prefix(fileName) {
 		fileName, err = decodeBase64WithPrefix(fileName)
 
 		if err != nil {
 			fmt.Fprintf(w, "Error processing the file name \"%s\": %s\n", fileName, err.Error())
+			return;
 		}
 	}
 
-	fsPath = path.Join(fsPath[:lastSlashIdx], fileName)
+	absPath = path.Join(absPath[:lastSlashIdx], fileName)
 
-	fileInfo, err := os.Lstat(fsPath)
+	fileInfo, err := os.Lstat(absPath)
 
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -149,13 +167,13 @@ func (DownloadHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if !fileInfo.IsDir() {
-		http.ServeFile(w, r, fsPath)
+		http.ServeFile(w, r, absPath)
 		return
 	}
 
 	buf := new(bytes.Buffer)
 	wzip := zip.NewWriter(buf)
-	err = wzip.AddFS(os.DirFS(fsPath))
+	err = wzip.AddFS(os.DirFS(absPath))
 
 	if err != nil {
 		fmt.Fprintf(w, "Error writing zip archive: %s", err.Error())
@@ -210,7 +228,7 @@ func GetFiles(root string) ([]MyDirEntry, error) {
 			RawModDate:  info.ModTime().Local(),
 			Size:        HumanizeBytes(info.Size()),
 			RelativeUrl: path.Join("/media", root, nameInUrl),
-			DownloadUrl: "/download?path=" + url.QueryEscape(path.Join(fsPath, nameInUrl)),
+			DownloadUrl: "/download?path=" + url.QueryEscape(path.Join(root, nameInUrl)),
 		})
 	}
 
@@ -255,7 +273,7 @@ func FindFiles(root string, search string) ([]MyDirEntry, error) {
 				RawModDate:  info.ModTime().Local(),
 				Size:        HumanizeBytes(info.Size()),
 				RelativeUrl: filePath,
-				DownloadUrl: "/download?path=" + url.QueryEscape(fsFilePath),
+				DownloadUrl: "/download?path=" + url.QueryEscape(filePath),
 			})
 		}
 
@@ -271,6 +289,21 @@ func FindFiles(root string, search string) ([]MyDirEntry, error) {
 	})
 
 	return files, nil
+}
+
+func (h UploadHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	// file, header, err := r.FormFile("file");
+	//
+	// if (err != nil) {
+	// 	fmt.Fprintf(w, "Error uploading file: %s\n", err.Error())
+	// 	return;
+	// }
+	//
+	// defer file.Close();
+	//
+	// destinationPath := r.FormValue("destination")
+
+	
 }
 
 func (h MediaHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -408,7 +441,7 @@ func init() {
 
 	fmt.Printf("Root directory set to \"%s\"\n", MEDIA_ROOT)
 
-	config := GetConfig()
+	config := config.GetConfig()
 
 	if config.Base64NamePrefix == "" {
 		log.Fatalln("Invalid configuration: \"base_64_name_prefix\" is required")
@@ -429,6 +462,7 @@ func main() {
 	mux.Handle("/", MainHandler{})
 	mux.Handle("/media/", MediaHandler{})
 	mux.Handle("/download/", DownloadHandler{})
+	mux.Handle("/upload/", UploadHandler{})
 	mux.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("static"))))
 
 	fmt.Printf("Listening on port %s\n", PORT)
