@@ -16,21 +16,30 @@
                     Busqueda recursiva
                 </button>
                 <button type="button" id="reset_search_btn">Limpiar</button>
-                <form
-                    action="/upload"
-                    method="POST"
-                    enctype="multipart/form-data"
-                >
-                    <input type="hidden" name="path" value="{{ .FsRelPath }}" />
-                    <input
-                        type="hidden"
-                        name="current_url"
-                        value="{{ .CurrentUrl }}"
-                    />
-                    <input type="file" name="file" id="upload_file_input" />
-                    <button type="submit" id="upload">Upload</button>
-                </form>
             </div>
+
+            <form
+                id="upload_form"
+                action="/upload"
+                method="POST"
+                enctype="multipart/form-data"
+            >
+                <input type="hidden" name="path" value="{{ .FsRelPath }}" />
+                <input
+                    type="hidden"
+                    name="current_url"
+                    value="{{ .CurrentUrl }}"
+                />
+                <input
+                    id="upload_input_file"
+                    type="file"
+                    name="file"
+                    id="upload_file_input"
+                />
+
+                <button type="button" id="upload_btn">upload</button>
+            </form>
+
             <ul class="breadcrumbs">
                 {{ range $index, $value := .Breadcrumbs }}
                     {{ if .IsLast }}
@@ -164,5 +173,20 @@
 
             location = url;
         }
+
+        upload_btn.addEventListener("click", () => {
+            upload_input_file.click();
+        });
+
+        upload_input_file.addEventListener("change", () => {
+            console.log("we", upload_input_file.files.length);
+            if (upload_input_file.files.length === 0) {
+                return;
+            }
+
+            upload_form.submit();
+        });
+
+        upload_input_file;
     </script>
 {{ end }}

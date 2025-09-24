@@ -332,6 +332,24 @@ func (h UploadHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	_, err = os.Lstat(absFilePath)
+
+	if err != nil && os.IsNotExist(err) {
+		//
+	} else if err != nil {
+		http.Error(w, fmt.Sprintf("Error creating file: %s", err.Error()), http.StatusBadRequest)
+		return
+	} else {
+		dir := filepath.Dir(absFilePath)
+		base := filepath.Base(absFilePath)
+		ext := filepath.Ext(base)
+
+		noExtFilename := strings.TrimSuffix(base, ext)
+		suffix := fmt.Sprintf("_%d", time.Now().UnixMilli());
+
+		absFilePath = filepath.Join(dir, noExtFilename + suffix + ext)
+	}
+
 	fsFile, err := os.Create(absFilePath)
 
 	if err != nil {
